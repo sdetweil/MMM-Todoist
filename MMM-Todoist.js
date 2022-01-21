@@ -53,6 +53,7 @@ Module.register("MMM-Todoist", {
 		displaySubtasks: true, // set to false to exclude subtasks
 		displayAvatar: false,
 		showProject: true,
+		showSingle: false,
 		// projectColors: ["#95ef63", "#ff8581", "#ffc471", "#f9ec75", "#a8c8e4", "#d2b8a3", "#e2a8e4", "#cccccc", "#fb886e",
 		// 	"#ffcc00", "#74e8d3", "#3bd5fb", "#dc4fad", "#ac193d", "#d24726", "#82ba00", "#03b3b2", "#008299",
 		// 	"#5db2ff", "#0072c6", "#000000", "#777777"
@@ -89,8 +90,11 @@ Module.register("MMM-Todoist", {
 
 		todoistResourceType: "[\"items\", \"projects\", \"collaborators\", \"user\", \"labels\"]",
 
-		debug: false
+		debug: false,
+		itemCycleTime: 2000,
 	},
+		index:0,
+		intervalHandle: null,
 
 	// Define required scripts.
 	getStyles: function () {
@@ -573,6 +577,10 @@ Module.register("MMM-Todoist", {
 
 		return cell;
 	},
+	callUpdate: function(){
+		this.updateDom(250)
+
+	},
 	getDom: function () {
 	
 		if (this.config.hideWhenEmpty && this.tasks.items.length===0) {
@@ -594,65 +602,96 @@ Module.register("MMM-Todoist", {
 		var divTable = document.createElement("div");
 		divTable.className = "divTable normal small light";
 
-		var divBody = document.createElement("div");
-		divBody.className = "divTableBody";
-		
-		if (this.tasks === undefined) {
-			return wrapper;
-		}
+		if(this.config.showSingle == true){
+			  if(this.intervalHandle == null){
+			  	this.intervalHandle=setInterval(()=>{this.callUpdate()}, this.config.itemCycleTime)
+			  }
+				let divRow = divTable
+				let item=this.tasks.items[this.index++]
+				if(this.index>=this.tasks.items.length)
+					this.index = 0
+				divRow.className = "divTableRow";
 
-		// create mapping from user id to collaborator index
-		var collaboratorsMap = new Map();
 
-		for (var value=0; value < this.tasks.collaborators.length; value++) {
-			collaboratorsMap.set(this.tasks.collaborators[value].id, value);
-		}
-
-		//Iterate through Todos
-		this.tasks.items.forEach(item => {
-			var divRow = document.createElement("div");
-			//Add the Row
-			divRow.className = "divTableRow";
-			
-
-			//Columns
-			divRow.appendChild(this.addPriorityIndicatorCell(item));
-			divRow.appendChild(this.addColumnSpacerCell());
-			divRow.appendChild(this.addTodoTextCell(item));
-			divRow.appendChild(this.addDueDateCell(item));
-			if (this.config.showProject) {
+				//Columns
+				divRow.appendChild(this.addPriorityIndicatorCell(item));
 				divRow.appendChild(this.addColumnSpacerCell());
-				divRow.appendChild(this.addProjectCell(item));
+				divRow.appendChild(this.addTodoTextCell(item));
+				divRow.appendChild(this.addColumnSpacerCell());
+				divRow.appendChild(this.addDueDateCell(item));
+				if (this.config.showProject) {
+					divRow.appendChild(this.addColumnSpacerCell());
+					divRow.appendChild(this.addProjectCell(item));
+				}
+				if (this.config.displayAvatar) {
+					divRow.appendChild(this.addColumnSpacerCell());
+					divRow.appendChild(this.addAssigneeAvatorCell(item, collaboratorsMap));
+				}
+
+				wrapper.appendChild(divRow);
+
+		} else {
+
+			var divBody = document.createElement("div");
+			divBody.className = "divTableBody";
+
+			if (this.tasks === undefined) {
+				return wrapper;
 			}
-			if (this.config.displayAvatar) {
-				divRow.appendChild(this.addAssigneeAvatorCell(item, collaboratorsMap));
+
+			// create mapping from user id to collaborator index
+			var collaboratorsMap = new Map();
+
+			for (var value=0; value < this.tasks.collaborators.length; value++) {
+				collaboratorsMap.set(this.tasks.collaborators[value].id, value);
 			}
 
-			divBody.appendChild(divRow);
-		});
-		
-		divTable.appendChild(divBody);
-		wrapper.appendChild(divTable);
+			//Iterate through Todos
+			this.tasks.items.forEach(item => {
+				var divRow = document.createElement("div");
+				//Add the Row
+				divRow.className = "divTableRow";
 
 
-		// display the update time at the end, if defined so by the user config
-		if (this.config.displayLastUpdate) {
-			var updateinfo = document.createElement("div");
-			updateinfo.className = "xsmall light align-left";
-			updateinfo.innerHTML = "Update : " + moment.unix(this.lastUpdate).format(this.config.displayLastUpdateFormat);
-			wrapper.appendChild(updateinfo);
-		}
+				//Columns
+				divRow.appendChild(this.addPriorityIndicatorCell(item));
+				divRow.appendChild(this.addColumnSpacerCell());
+				divRow.appendChild(this.addTodoTextCell(item));
+				divRow.appendChild(this.addDueDateCell(item));
+				if (this.config.showProject) {
+					divRow.appendChild(this.addColumnSpacerCell());
+					divRow.appendChild(this.addProjectCell(item));
+				}
+				if (this.config.displayAvatar) {
+					divRow.appendChild(this.addAssigneeAvatorCell(item, collaboratorsMap));
+				}
 
-		//**** FOR DEBUGGING TO HELP PEOPLE GET THEIR PROJECT IDs - (People who can't see console) */
-		if (this.config.debug) {
-			var projectsids = document.createElement("div");
-			projectsids.className = "xsmall light align-left";
-			projectsids.innerHTML = "<span>*** PROJECT -- ID ***</span><br />";
-			this.tasks.projects.forEach(project => {
-				projectsids.innerHTML += "<span>" + project.name + " -- " + project.id + "</span><br />";
+				divBody.appendChild(divRow);
 			});
-			wrapper.appendChild(projectsids);
-		};
+
+			divTable.appendChild(divBody);
+			wrapper.appendChild(divTable);
+
+
+			// display the update time at the end, if defined so by the user config
+			if (this.config.displayLastUpdate) {
+				var updateinfo = document.createElement("div");
+				updateinfo.className = "xsmall light align-left";
+				updateinfo.innerHTML = "Update : " + moment.unix(this.lastUpdate).format(this.config.displayLastUpdateFormat);
+				wrapper.appendChild(updateinfo);
+			}
+
+			//**** FOR DEBUGGING TO HELP PEOPLE GET THEIR PROJECT IDs - (People who can't see console) */
+			if (this.config.debug) {
+				var projectsids = document.createElement("div");
+				projectsids.className = "xsmall light align-left";
+				projectsids.innerHTML = "<span>*** PROJECT -- ID ***</span><br />";
+				this.tasks.projects.forEach(project => {
+					projectsids.innerHTML += "<span>" + project.name + " -- " + project.id + "</span><br />";
+				});
+				wrapper.appendChild(projectsids);
+			};
+		}
 		//****** */
 
 		return wrapper;
