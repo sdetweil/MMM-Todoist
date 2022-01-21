@@ -462,14 +462,17 @@ Module.register("MMM-Todoist", {
 		var className = "priority ";
 		switch (item.priority) {
 			case 4:
-				className += "priority1";
+				className += "priority4";
 				break;
 			case 3:
-				className += "priority2";
-				break;
-			case 2:
 				className += "priority3";
 				break;
+			case 2:
+				className += "priority2";
+				break;
+			case 1:
+				className += "priority1";
+				break
 			default:
 				className = "";
 				break;
